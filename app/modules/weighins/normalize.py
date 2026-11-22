@@ -29,6 +29,11 @@ def normalize(name, row):
             if net<=0:
                 raise RejectedTicket('BAD_MASS')
             return {**base,'source_kind':raw['source_kind'],'source':raw['source'],'g':str(net)}
+        if name=='receipts':
+            net=grams(raw['received'],unit)
+            if net<=0:
+                raise RejectedTicket('BAD_MASS')
+            return {**base,'ticket':raw['ticket'],'source':raw['source'],'g':str(net)}
         quantity=grams(raw['available' if name=='origins' else 'measured'],unit)
         if name=='jobs' and quantity<=0:
             raise RejectedTicket('BAD_MASS')

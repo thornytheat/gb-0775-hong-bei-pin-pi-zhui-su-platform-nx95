@@ -10,5 +10,6 @@ def verify_and_export(document):
         raise RoastError('BAD_SEAL','称签原件或结果校验失败',409)
     if not reports['balance']['balanced']:
         raise RoastError('UNBALANCED','重量差额尚未对平',409)
-    evidence={**document,'packages':recall(reports)}
+    packages,pending=recall(reports)
+    evidence={**document,'packages':packages,'pending_packages':pending}
     return {**evidence,'verified':True,'seal':checksum(encode(evidence))}

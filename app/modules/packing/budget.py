@@ -2,6 +2,10 @@ from collections import defaultdict
 from fractions import Fraction
 
 
+def propagate(parts, portion, intake):
+    return {key:str(Fraction(value)*portion/intake) for key,value in parts.items()}
+
+
 def budgets(supply):
     outputs=defaultdict(list)
     for row in supply['outputs'].values():

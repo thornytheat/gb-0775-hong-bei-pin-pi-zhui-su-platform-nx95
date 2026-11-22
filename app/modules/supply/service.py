@@ -27,15 +27,25 @@ def check_supply(intake):
             rejected.append({**row,'code':'NO_RETURN'})
         else:
             candidates.append(row)
-    accepted,overdraw,pools=reserve(candidates,origins,coupons)
+    receipts=dict(tables['receipts'])
+    ticket_work={row['id']:row['work'] for row in candidates}
+    for note in receipts.values():
+        note.setdefault('work',ticket_work.get(note['ticket']))
+    accepted,overdraw,pools=reserve(candidates,origins,coupons,receipts)
     rejected.extend(overdraw)
-    input_bad, output_bad = {},{}
+    input_bad, output_bad, receipt_bad = {},{},{}
     for row in intake['rejected']+rejected:
         if row['code']=='COPIED_TICKET' or row.get('work') not in jobs:
             continue
-        if row['sheet'] in ('inputs','outputs'):
-            index=input_bad if row['sheet']=='inputs' else output_bad
+        if row['sheet'] in ('inputs','outputs','receipts'):
+            if row['sheet']=='outputs':
+                index=output_bad
+            elif row['sheet']=='receipts':
+                index=receipt_bad
+            else:
+                index=input_bad
             index.setdefault(row['work'],[]).append(row)
     return dict(jobs=jobs,origins=origins,inputs=accepted,outputs=outputs,return_lots=coupons,
-                pools=pools,by_input_issue=input_bad,by_output_issue=output_bad,rejected=rejected,
+                receipts=receipts,pools=pools,by_input_issue=input_bad,by_output_issue=output_bad,
+                by_receipt_issue=receipt_bad,rejected=rejected,
                 reasons=dict(Counter(row['code'] for row in rejected)))

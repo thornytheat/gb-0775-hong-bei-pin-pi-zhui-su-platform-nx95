@@ -47,9 +47,16 @@ def test_packaging_identity_in_attachment(client):
     key=client.post('/api/runs',json={'sample':'dirty'}).json['id']
     response=client.get(f'/api/export/{key}')
     assert response.headers['Content-Disposition'].startswith('attachment;')
-    assert set(response.json['packages'])=={'PK-A','PK-B','PK-C','PK-D'}
+    assert set(response.json['packages'])=={'PK-A','PK-B','PK-C','PK-D','PK-E','PK-F'}
+    assert set(response.json['pending_packages'])=={'PK-G'}
+    assert response.json['pending_packages']['PK-G']['hold_codes']==['NEGATIVE_REMAINDER']
 
 
 def test_packaging_pending_never_signed(document):
     result=verify_and_export(document)
     assert 'PK-G' not in result['packages'] and result['reports']['balance']['jobs']['BA-07']['pending_g']=='100'
+    # 回执裁决放行的包装带完整产地克重，可随当天签发
+    pkg=result['packages']['PK-E']
+    assert pkg['net_g']=='40' and pkg['origins']=={'ET-01':dict(grams='40',share='1',
+        label=result['reports']['supply']['origins']['ET-01']['label'],
+        line=result['reports']['supply']['origins']['ET-01']['line'])}

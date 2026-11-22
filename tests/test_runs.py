@@ -10,8 +10,8 @@ from app.modules.runs.service import seal_run
 
 def test_archived_manifest(client):
     response=client.post('/api/runs',json={'sample':'dirty'})
-    assert response.status_code==201 and response.json['manifest']['rules']=='roast-ledger-1.0'
-    assert len(response.json['manifest']['files'])==4
+    assert response.status_code==201 and response.json['manifest']['rules']=='roast-ledger-1.1'
+    assert len(response.json['manifest']['files'])==5
 
 
 def test_repeat_is_same(client):
@@ -51,3 +51,19 @@ def test_damaged_archive(tmp_path,files):
     with pytest.raises(RoastError) as error:
         cabinet.read(key)
     assert error.value.code=='DAMAGED_RUN'
+
+
+def test_late_receipt_creates_new_archive_keeps_old(client,files):
+    held={**files,'receipts':'receipt,ticket,source,received,unit\n'}
+    first=client.post('/api/runs',json={'files':held}).json
+    settled=client.post('/api/runs',json={'files':files}).json
+    assert settled['id']!=first['id'] and not settled['reused']
+    # 已签原件仍可核验，重跑同一份材料不新增签件
+    assert client.get(f"/api/export/{first['id']}").status_code==200
+    rerun=client.post(f"/api/runs/{settled['id']}/rerun").json
+    assert rerun['id']==settled['id'] and rerun['reused']
+    assert len(client.get('/api/runs').json['runs'])==2
+    old=client.get(f"/api/export/{first['id']}").json
+    new=client.get(f"/api/export/{settled['id']}").json
+    assert 'PK-E' not in old['packages'] and 'PK-E' in new['packages']
+    assert set(old['pending_packages'])=={'PK-E','PK-F','PK-G'}

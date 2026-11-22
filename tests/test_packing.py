@@ -23,7 +23,19 @@ def test_negative_remainder_blocks_certification(dirty):
 def test_spent_return_not_double_counted(dirty):
     returns=dirty['packing']['returns']
     assert [(k,returns[k]['drawn_g'],returns[k]['available_g']) for k in ('RT-A','RT-B','RT-D')]==[
-        ('RT-A','300','0'),('RT-B','30','0'),('RT-D','0','100')]
+        ('RT-A','300','0'),('RT-B','30','0'),('RT-D','95','5')]
+
+
+def test_receipt_adjudication_frees_overdraw_packages(dirty):
+    # RT-D 申请 120 g 超卷重 100 g，两张实领回执合计 95 g，整组放行
+    pool=dirty['supply']['pools']['return']['RT-D']
+    assert (pool['received_g'],pool['reserved_g'],pool['blocked'])==('95','95',False)
+    assert set(dirty['packing']['packages'])>={'PK-E','PK-F'}
+    assert dirty['packing']['pending_packages']=={'PK-G':dirty['packing']['pending_packages']['PK-G']}
+    for work in ('BA-05','BA-06'):
+        assert dirty['lineage']['jobs'][work]['codes']==['RECEIPT_VARIANCE']
+    row=dirty['packing']['jobs']['BA-05']
+    assert (row['admitted_g'],row['pack_g'],row['hold_g'])==('50','40','10')
 
 
 def test_package_fraction(dirty):

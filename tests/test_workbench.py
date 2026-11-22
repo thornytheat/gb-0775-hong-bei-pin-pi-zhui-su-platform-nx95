@@ -16,3 +16,22 @@ def test_rejected_file_has_no_archive(client,files):
     response=client.post('/api/runs',json={'files':files})
     assert (response.status_code,response.json['code'])==(422,'HEADER_ONLY')
     assert client.get('/api/runs').json['runs']==[]
+
+
+def test_proof_page_splits_signable_and_pending(client):
+    page=client.get('/ledger/proof?work=BA-05').get_data(as_text=True)
+    assert '可签包装' in page and '待证包装' in page
+    assert 'PK-E' in page and 'PK-G' in page
+    assert page.index('可签包装') < page.index('PK-E') < page.index('待证包装')
+
+
+def test_packing_page_shows_received_grams(client):
+    page=client.get('/ledger/packing?work=BA-05').get_data(as_text=True)
+    assert '实领 g' in page and 'RC-01' not in page  # 返料表只展实领克重
+    assert '已核可签' in page
+
+
+def test_receipts_optional_in_submission(client,files):
+    del files['receipts']
+    response=client.post('/api/lots/supply',json={'files':files})
+    assert response.status_code==200 and response.json['pools']['return']['RT-D']['blocked']

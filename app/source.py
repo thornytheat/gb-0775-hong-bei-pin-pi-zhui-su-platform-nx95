@@ -10,8 +10,12 @@ def receive(payload):
             raise RoastError('NO_SAMPLE','该样例未登记',404)
         return {name:(SAMPLES/key/f'{name}.csv').read_bytes().decode() for name in SCHEMA}
     files=payload.get('files') if isinstance(payload,dict) else None
-    if not isinstance(files,dict) or set(payload)!={'files'} or set(files)!=set(SCHEMA) or any(not isinstance(text,str) for text in files.values()):
+    optional={'receipts':'receipt,ticket,source,received,unit\n'}
+    allowed=set(SCHEMA)
+    if not isinstance(files,dict) or set(payload)!={'files'} or not set(files)<=allowed \
+            or not set(SCHEMA)-set(files)<=set(optional) or any(not isinstance(text,str) for text in files.values()):
         raise RoastError('BAD_INPUT','请提交整套称签 CSV')
+    files={**{name:text for name,text in optional.items() if name not in files},**files}
     try:
         if any(len(text.encode())>FILE_LIMIT for text in files.values()):
             raise RoastError('TOO_LARGE','单张原件超过 300 KB',413)

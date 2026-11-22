@@ -1,3 +1,6 @@
+from app.pipeline import compute
+
+
 def test_bom(dirty):  # TRAP-02
     assert dirty['weighins']['tables']['inputs']['IN-01']['raw']['ticket']=='IN-01'
 
@@ -33,3 +36,15 @@ def test_invalid_header(client,files):
     files['outputs']='bad,header\n'
     response=client.post('/api/lots/weighins',json={'files':files})
     assert (response.status_code,response.json['code'])==(422,'BAD_HEADER')
+
+
+def test_receipts_sheet_stats(dirty):
+    assert dirty['weighins']['files']['receipts']==dict(segments=1,blanks=0,records=2,accepted=2,isolated=0)
+    assert set(dirty['weighins']['tables'])=={'jobs','origins','inputs','outputs','receipts'}
+
+
+def test_bad_receipt_mass_isolated(files):
+    files['receipts']+='RC-09,IN-09,RT-D,0,g\n'
+    result=compute(files,until='weighins')['weighins']
+    issue=next(row for row in result['rejected'] if row['sheet']=='receipts')
+    assert (issue['id'],issue['code'])==('RC-09','BAD_MASS')

@@ -2,6 +2,8 @@ from collections import defaultdict
 from fractions import Fraction
 from graphlib import TopologicalSorter
 
+from app.codes import is_blocked
+
 from .cycles import find_cycles
 from .mix import blend
 
@@ -20,7 +22,8 @@ def trace(supply, limits):
     result={}
     for work in TopologicalSorter({node:() if node in loop_paths else parents for node,parents in edges.items()}).static_order():
         job=jobs[work]
-        accepted=sum((Fraction(row['g']) for row in grouped[work]),Fraction())
+        admitted=sum((Fraction(row['g']) for row in grouped[work]),Fraction())
+        receipt_rows=[row for row in grouped[work] if row.get('receipt_id')]
         warnings=[]
         if work in loop_paths:
             warnings.append('CYCLE')
@@ -28,14 +31,15 @@ def trace(supply, limits):
             warnings.append('INPUT_DISPUTE')
         if limits[work]['code']:
             warnings.append(limits[work]['code'])
-        if accepted!=Fraction(job['g']):
-            warnings.append('INTAKE_MISMATCH')
-        unresolved=sorted(parent for parent in edges[work] if parent in result and result[parent]['codes'])
+        if admitted!=Fraction(job['g']):
+            explained=bool(receipt_rows)
+            warnings.append('RECEIPT_VARIANCE' if explained else 'INTAKE_MISMATCH')
+        unresolved=sorted(parent for parent in edges[work] if parent in result and is_blocked(result[parent]['codes']))
         if unresolved and work not in loop_paths:
             warnings.append('UPSTREAM_PENDING')
-        mix, feed_rows=({},[]) if warnings else blend(grouped[work],coupons,result)
-        result[work]=dict(work=work,input_g=job['g'],admitted_g=str(accepted),codes=warnings,
+        mix, feed_rows=({},[]) if is_blocked(warnings) else blend(grouped[work],coupons,result)
+        result[work]=dict(work=work,input_g=job['g'],admitted_g=str(admitted),codes=warnings,
                           lots=feed_rows,composition_g=mix,job_line=job['line'],cycle_path=loop_paths.get(work,[]),
                           upstream_pending=unresolved,reported_inputs=grouped[work],
                           input_issues=supply['by_input_issue'].get(work,[]))
-    return dict(jobs=result,cycles=loops,certified=sum(not row['codes'] for row in result.values()))
+    return dict(jobs=result,cycles=loops,certified=sum(not is_blocked(row['codes']) for row in result.values()))

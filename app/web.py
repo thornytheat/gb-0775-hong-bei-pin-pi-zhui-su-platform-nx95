@@ -37,8 +37,13 @@ def counter(view='balance'):
     if work not in reports['supply']['jobs']:
         raise RoastError('NO_WORK','找不到该工作批',404)
     proof=verify_and_export(document) if document and view=='proof' else None
-    packages=proof['packages'] if proof else recall(reports) if view=='proof' else {}
+    if proof:
+        packages, pending_packages=proof['packages'],proof['pending_packages']
+    elif view=='proof':
+        packages, pending_packages=recall(reports)
+    else:
+        packages, pending_packages={},{}
     return render_template('base.html',view=view,panels=PANELS,records=reports,codebook=REASONS, sample=sample, key=key,
                            manifest=document['manifest'] if document else None, work=work, rule=RULE_VERSION,
-                           proof=proof,packages=packages,dest=DEST,mass=mass,
+                           proof=proof,packages=packages,pending_packages=pending_packages,dest=DEST,mass=mass,
                            history=cabinet().recent() if view=='runs' else [])

@@ -36,3 +36,12 @@ def test_mismatched_input_hold(dirty):
     result=dirty['lineage']['jobs']['BA-08']
     assert result['admitted_g']=='0' and result['input_g']=='70'
     assert 'INTAKE_MISMATCH' in result['codes'] and len(result['input_issues'])==5
+
+
+def test_receipt_variance_is_informational(dirty):
+    for work in ('BA-05','BA-06'):
+        row=dirty['lineage']['jobs'][work]
+        assert row['codes']==['RECEIPT_VARIANCE'] and row['composition_g']=={'ET-01':row['admitted_g']}
+    assert dirty['lineage']['certified']==6
+    # 信息性留痕不向上游/下游传播阻断
+    assert all('UPSTREAM_PENDING' not in job['codes'] for job in dirty['lineage']['jobs'].values())
